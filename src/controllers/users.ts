@@ -25,13 +25,14 @@ export const getUserById = (req: Request, res: Response, next: NextFunction) => 
 export const createUser = (req: Request, res: Response, next: NextFunction) => {
   const { name, about, avatar } = req.body;
 
-  if (!name || !about || !avatar) throw new BadRequestError('Переданы некорректные данные при создании пользователя');
-
   User.create({ name, about, avatar })
     .then(user => res.status(SUCCESS_CODE).json(user))
     .catch(err => {
-      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
-      else next(err);
+      if (err.name === 'ValidationError') {
+        next(new ValidationError(err.errors));
+      } else {
+        next(err);
+      }
     });
 };
 
@@ -39,8 +40,6 @@ export const updateUser = (req: Request, res: Response, next: NextFunction) => {
   if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
   const { name, about } = req.body;
-
-  if (!name || !about) throw new BadRequestError('Переданы некорректные данные при обновлении пользователя');
 
   User.findByIdAndUpdate(
     (req as RequestWithUser).user._id,
@@ -52,8 +51,11 @@ export const updateUser = (req: Request, res: Response, next: NextFunction) => {
       res.status(OK_CODE).json(user);
     })
     .catch(err => {
-      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
-      else next(err);
+      if (err.name === 'ValidationError') {
+        next(new ValidationError(err.errors));
+      } else {
+        next(err);
+      }
     });
 };
 
@@ -61,8 +63,6 @@ export const updateUserAvatar = (req: Request, res: Response, next: NextFunction
   if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
   const { avatar } = req.body;
-
-  if (!avatar) throw new BadRequestError('Переданы некорректные данные при обновлении аватара');
 
   User.findByIdAndUpdate(
     (req as RequestWithUser).user._id,
@@ -74,7 +74,10 @@ export const updateUserAvatar = (req: Request, res: Response, next: NextFunction
       res.status(OK_CODE).json(user);
     })
     .catch(err => {
-      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
-      else next(err);
+      if (err.name === 'ValidationError') {
+        next(new ValidationError(err.errors));
+      } else {
+        next(err);
+      }
     });
 };

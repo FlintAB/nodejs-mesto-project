@@ -2,14 +2,17 @@ import express, { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import userRouter from "./routes/users";
 import cardRouter from "./routes/cards";
-import { AppError } from "../src/middlewares/errors";
-import { DEFAULT_CODE } from "../src/constants/statusCode";
 import { RequestWithUser } from "./types/index";
+import { errorHandler } from "./middlewares/errorHandler";
+import { notFoundHandler } from "./middlewares/notFound";
+import {apiLimiter} from './middlewares/rateLimit';
 
 
 const { PORT = 3000 } = process.env;
-
 const app = express();
+
+app.use(apiLimiter);
+
 app.use(express.json());
 
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -28,19 +31,12 @@ app.use('/users', userRouter);
 app.use('/cards', cardRouter);
 
 
-app.use((err: Error | AppError, req: Request, res: Response, next: NextFunction) => {
+// Обработка несуществующего роута
+app.use('*',notFoundHandler);
 
-  console.error(err.stack || err.message);
+// Централизованная обработка ошибок
+app.use(errorHandler);
 
-  const statusCode = err instanceof AppError ? err.statusCode : DEFAULT_CODE;
-  const message = statusCode === DEFAULT_CODE ? 'На сервере произошла ошибка' : err.message;
-
-  res.status(statusCode).json({
-    message,
-    status: 'error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
 
 mongoose.connect('mongodb://localhost:27017/mestodb')
   .then(() => {

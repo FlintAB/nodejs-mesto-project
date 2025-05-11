@@ -17,13 +17,14 @@ export const createCard = (req: Request, res: Response, next: NextFunction) => {
   const { name, link } = req.body;
   const owner = (req as RequestWithUser).user._id;
 
-  if (!name || !link) throw new BadRequestError('Переданы некорректные данные при создании карточки');
-
   Card.create({ name, link, owner })
     .then(card => res.status(SUCCESS_CODE).json(card))
     .catch(err => {
-      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
-      else next(err);
+      if (err.name === 'ValidationError') {
+        next(new ValidationError(err.errors));
+      } else {
+        next(err);
+      }
     });
 };
 

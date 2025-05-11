@@ -11,17 +11,17 @@ type TCard = {
 const cardSchema = new mongoose.Schema<TCard>({
   name: {
     type: String,
-    required: true,
-    minlength: 2,
-    maxlength: 30
+    required: [true, 'Поле name должно быть заполнено'],
+    minlength: [2, 'Минимальная длина поля name - 2'],
+    maxlength: [30, 'Максимальная длина поля name - 30']
   },
   link: {
     type: String,
-    required: true
+    required: [true, 'Поле link должно быть заполнено']
   },
   owner: {
     type: Schema.Types.ObjectId,
-    required: true,
+    required: [true, 'ПОле owner должно быть заполнено'],
     ref: 'user'
   },
   likes: {
@@ -32,6 +32,6 @@ const cardSchema = new mongoose.Schema<TCard>({
     type: Date,
     default: Date.now
   }
-});
+}, { versionKey: false });
 
 export default mongoose.model<TCard>('card', cardSchema)

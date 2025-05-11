@@ -34,9 +34,12 @@ export class InternalServerError extends AppError {
   }
 }
 
-export class ValidationError extends BadRequestError {
+export class ValidationError extends AppError {
+  errors: string[];
+
   constructor(errors: Record<string, { message: string }>) {
     const messages = Object.values(errors).map(e => e.message);
-    super(`Ошибка валидации: ${messages.join(', ')}`);
+    super(`Ошибка валидации: ${messages.join(', ')}`, 400);
+    this.errors = messages;
   }
 }
