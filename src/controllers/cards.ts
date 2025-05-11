@@ -1,80 +1,89 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import Card from '../models/card';
-import { DEFAULT_CODE, ERROR_CODE, MISSING_CODE, OK_CODE, SUCCESS_CODE } from "../constants/statusCode";
+import { OK_CODE, SUCCESS_CODE } from "../constants/statusCode";
 import { Types } from "mongoose";
+import { BadRequestError, NotFoundError, UnauthorizedError, ValidationError } from "../middlewares/errors";
+import { RequestWithUser } from "../types/index";
 
-
-export const getCards = (req: Request, res: Response) => {
-  return Card.find({})
-    .then((cards) => res.status(OK_CODE).send({ data: cards}))
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+export const getCards = (req: Request, res: Response, next: NextFunction) => {
+  Card.find({})
+    .then(cards => res.status(OK_CODE).json(cards))
+    .catch(next);
 };
 
-export const createCard = (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const owner = req.user._id;;
-  const {name, link} = req.body;
+export const createCard = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if(!name || !link){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные при создании карточки'})
-  }
+  const { name, link } = req.body;
+  const owner = (req as RequestWithUser).user._id;
 
-  return Card.create({name, link, owner})
-    .then((card) => res.status(SUCCESS_CODE).send({ data: card}))
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+  if (!name || !link) throw new BadRequestError('Переданы некорректные данные при создании карточки');
+
+  Card.create({ name, link, owner })
+    .then(card => res.status(SUCCESS_CODE).json(card))
+    .catch(err => {
+      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
+      else next(err);
+    });
 };
 
-export const deleteCard = (req: Request, res: Response) => {
+export const deleteCard = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if(!Types.ObjectId.isValid){
-    return res.status(ERROR_CODE).send({ message: 'Передан некорректный _id карточки'})
+  const cardId = req.params.cardId;
+
+  if (!Types.ObjectId.isValid(cardId)) {
+    throw new BadRequestError('Передан некорректный _id карточки');
   }
 
-  return Card.findByIdAndDelete(req.params._id)
-    .then((card) => {
-      if(!card){
-        return res.status(MISSING_CODE).send({ message: 'Карточка с указанным _id не найдена'})
-      }
-      res.status(OK_CODE).send({ data: card})
+  Card.findByIdAndDelete(cardId)
+    .then(card => {
+      if (!card) throw new NotFoundError('Карточка с указанным _id не найдена');
+      res.status(OK_CODE).json(card);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+    .catch(next);
 };
 
-export const likeCard = (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const userId = req.user._id;
+export const likeCard = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if(!Types.ObjectId.isValid){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные для постановки лайка или некорректный _id карточки'})
+  const userId = (req as RequestWithUser).user._id;
+  const cardId = req.params.cardId;
+
+  if (!Types.ObjectId.isValid(cardId)) {
+    throw new BadRequestError('Переданы некорректные данные для постановки лайка');
   }
 
-  return Card.findByIdAndUpdate(req.params.cardId, {$addToSet: {likes: userId}}, {new: true})
-    .then((card) => {
-      if(!card){
-        return res.status(MISSING_CODE).send({ message: 'Передан несуществующий _id карточки'})
-      }
-      res.status(OK_CODE).send({ data: card})
+  Card.findByIdAndUpdate(
+    cardId,
+    { $addToSet: { likes: userId } },
+    { new: true, runValidators: true }
+  )
+    .then(card => {
+      if (!card) throw new NotFoundError('Карточка не найдена');
+      res.status(OK_CODE).json(card);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+    .catch(next);
 };
 
-export const dislikeCard = (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const userId = req.user._id;
+export const dislikeCard = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if(!Types.ObjectId.isValid){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные для снятия лайка или некорректный _id карточки'})
+  const userId = (req as RequestWithUser).user._id;
+  const cardId = req.params.cardId;
+
+  if (!Types.ObjectId.isValid(cardId)) {
+    throw new BadRequestError('Переданы некорректные данные для снятия лайка');
   }
 
-  return Card.findByIdAndUpdate(req.params.cardId, {$pull: {likes: userId}}, {new: true})
-    .then((card) => {
-      if (!card){
-        return res.status(MISSING_CODE).send({ message: 'Передан несуществующий _id карточки'})
-      }
-      res.status(OK_CODE).send({ data: card})
+  Card.findByIdAndUpdate(
+    cardId,
+    { $pull: { likes: userId } },
+    { new: true, runValidators: true }
+  )
+    .then(card => {
+      if (!card) throw new NotFoundError('Карточка не найдена');
+      res.status(OK_CODE).json(card);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
-}
+    .catch(next);
+};

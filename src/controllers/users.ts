@@ -1,75 +1,80 @@
-import { DEFAULT_CODE, ERROR_CODE, MISSING_CODE, OK_CODE, SUCCESS_CODE } from '../constants/statusCode';
+import { BadRequestError, NotFoundError, UnauthorizedError, ValidationError } from '../middlewares/errors';
+import { OK_CODE, SUCCESS_CODE } from '../constants/statusCode';
 import User from '../models/user';
-import { Response, Request } from 'express';
+import { Response, Request, NextFunction } from 'express';
+import { RequestWithUser } from '../types/index';
 
-export const getUsers = (req: Request, res: Response) => {
-  return User.find({})
-    .then((users) => {
-      if(!users || users.length === 0){
-        return res.status(MISSING_CODE).send({ message: 'Пользователи не найдены'})
-      } res.status(OK_CODE).send({data: users})
+export const getUsers = (req: Request, res: Response, next: NextFunction) => {
+  User.find({})
+    .then(users => {
+      if (!users || users.length === 0) throw new NotFoundError('Пользователи не найдены');
+      res.status(OK_CODE).json(users);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+    .catch(next);
 };
 
-export const getUserById = (req: Request, res: Response) => {
-  return User.findById(req.params.userId)
-    .then((user) => {
-      if (!user){
-        return res.status(MISSING_CODE).send({ message: 'Пользователь не найден'})
-      } res.status(OK_CODE).send({data: user})
+export const getUserById = (req: Request, res: Response, next: NextFunction) => {
+  User.findById(req.params.userId)
+    .then(user => {
+      if (!user) throw new NotFoundError('Пользователь не найден');
+      res.status(OK_CODE).json(user);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+    .catch(next);
 };
 
-export const createUser = (req: Request, res: Response) => {
-  const {name, about, avatar} = req.body;
+export const createUser = (req: Request, res: Response, next: NextFunction) => {
+  const { name, about, avatar } = req.body;
 
-  if (!name || !about || !avatar){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные при создании пользователя'})
-  }
+  if (!name || !about || !avatar) throw new BadRequestError('Переданы некорректные данные при создании пользователя');
 
-  return User.create({name, about, avatar})
-    .then((user) => res.status(SUCCESS_CODE).send({ data: user}))
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+  User.create({ name, about, avatar })
+    .then(user => res.status(SUCCESS_CODE).json(user))
+    .catch(err => {
+      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
+      else next(err);
+    });
 };
 
-export const updateUser = (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const userId = req.user._id;
-  const {name, about} = req.body;
+export const updateUser = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if (!name || !about){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные при создании пользователя'})
-  }
+  const { name, about } = req.body;
 
-  return User.findByIdAndUpdate(userId, {name, about}, {new: true})
-    .then((user) => {
-      if (!user){
-        return res.status(MISSING_CODE).send({ message: 'Пользователь не найден'})
-      }
-      res.status(OK_CODE).send({data: user})
+  if (!name || !about) throw new BadRequestError('Переданы некорректные данные при обновлении пользователя');
+
+  User.findByIdAndUpdate(
+    (req as RequestWithUser).user._id,
+    { name, about },
+    { new: true, runValidators: true }
+  )
+    .then(user => {
+      if (!user) throw new NotFoundError('Пользователь не найден');
+      res.status(OK_CODE).json(user);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
+    .catch(err => {
+      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
+      else next(err);
+    });
 };
 
-export const updateUserAvatar = (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const userId = req.user._id;
-  const {avatar} = req.body;
+export const updateUserAvatar = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
 
-  if (!avatar){
-    return res.status(ERROR_CODE).send({ message: 'Переданы некорректные данные при создании пользователя'})
-  }
+  const { avatar } = req.body;
 
-  return User.findByIdAndUpdate(userId, {avatar}, {new: true})
-    .then((user) => {
-      if (!user){
-        return res.status(MISSING_CODE).send({ message: 'Пользователь не найден'})
-      }
-      res.status(OK_CODE).send({ data: user})
+  if (!avatar) throw new BadRequestError('Переданы некорректные данные при обновлении аватара');
+
+  User.findByIdAndUpdate(
+    (req as RequestWithUser).user._id,
+    { avatar },
+    { new: true, runValidators: true }
+  )
+    .then(user => {
+      if (!user) throw new NotFoundError('Пользователь не найден');
+      res.status(OK_CODE).json(user);
     })
-    .catch(() => res.status(DEFAULT_CODE).send({ message: 'Ошибка сервера'}))
-}
+    .catch(err => {
+      if (err.name === 'ValidationError') next(new ValidationError(err.errors));
+      else next(err);
+    });
+};
