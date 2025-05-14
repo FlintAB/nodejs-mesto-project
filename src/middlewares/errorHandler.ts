@@ -1,12 +1,12 @@
 import { ErrorRequestHandler } from 'express';
 import { AppError, ValidationError } from './errors';
-import { DEFAULT_CODE } from '../constants/statusCode';
+import { DEFAULT_CODE, ERROR_CODE } from '../constants/statusCode';
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   console.error(err.stack || err.message);
 
   if (err instanceof ValidationError) {
-    return res.status(400).json({
+    return res.status(ERROR_CODE).json({
       status: 'error',
       message: err.message,
       errors: err.errors

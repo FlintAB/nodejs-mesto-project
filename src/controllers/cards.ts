@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import Card from '../models/card';
 import { OK_CODE, SUCCESS_CODE } from "../constants/statusCode";
 import { Types } from "mongoose";
-import { BadRequestError, NotFoundError, UnauthorizedError, ValidationError } from "../middlewares/errors";
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../middlewares/errors";
 import { RequestWithUser } from "../types/index";
 
 export const getCards = (req: Request, res: Response, next: NextFunction) => {
@@ -29,18 +29,31 @@ export const createCard = (req: Request, res: Response, next: NextFunction) => {
 };
 
 export const deleteCard = (req: Request, res: Response, next: NextFunction) => {
-  if (!(req as RequestWithUser).user) throw new UnauthorizedError('Пользователь не авторизован');
-
-  const cardId = req.params.cardId;
-
-  if (!Types.ObjectId.isValid(cardId)) {
-    throw new BadRequestError('Передан некорректный _id карточки');
+  if (!(req as RequestWithUser).user) {
+    return next(new UnauthorizedError('Пользователь не авторизован'));
   }
 
-  Card.findByIdAndDelete(cardId)
+  const { cardId } = req.params;
+  const userId = (req as RequestWithUser).user._id;
+
+  if (!Types.ObjectId.isValid(cardId)) {
+    return next(new BadRequestError('Передан некорректный _id карточки'));
+  }
+
+  Card.findById(cardId)
     .then(card => {
-      if (!card) throw new NotFoundError('Карточка с указанным _id не найдена');
-      res.status(OK_CODE).json(card);
+      if (!card) {
+        return next(new NotFoundError('Карточка с указанным _id не найдена'));
+      }
+
+      if (card.owner.toString() !== userId.toString()) {
+        return next(new ForbiddenError('Нельзя удалять чужие карточки'));
+      }
+
+      return Card.findByIdAndDelete(cardId)
+        .then(deletedCard => {
+          res.status(OK_CODE).json(deletedCard);
+        });
     })
     .catch(next);
 };
