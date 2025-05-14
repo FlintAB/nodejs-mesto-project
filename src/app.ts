@@ -5,12 +5,12 @@ import cardRouter from "./routes/cards";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundHandler } from "./middlewares/notFound";
 import {apiLimiter} from './middlewares/rateLimit';
-import { createUser, login } from "controllers/users";
+import { createUser, login } from "./controllers/users";
 import cookieParser from "cookie-parser";
 import auth from './middlewares/auth';
-import { requestLogger, errorLogger } from "middlewares/logger";
+import { requestLogger, errorLogger } from "./middlewares/logger";
 import { celebrate, errors } from "celebrate";
-import { createUserSchema, loginSchema } from "middlewares/validators";
+import { createUserSchema, loginSchema } from "./middlewares/validators";
 
 
 const { PORT = 3000 } = process.env;
@@ -29,12 +29,12 @@ app.post('/signup', celebrate({body: createUserSchema}) ,createUser);
 app.use(auth);
 app.use('/users', userRouter);
 app.use('/cards', cardRouter);
+// Обработка несуществующего роута
+app.use('*',notFoundHandler);
+
 
 app.use(errorLogger);
 app.use(errors());
-
-// Обработка несуществующего роута
-app.use('*',notFoundHandler);
 // Централизованная обработка ошибок
 app.use(errorHandler);
 

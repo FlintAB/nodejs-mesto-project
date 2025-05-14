@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getUsers, getUserById, updateUser, updateUserAvatar, getCurrentUser } from "../controllers/users";
 import { celebrate } from "celebrate";
-import { updateAvatarSchema, updateUserSchema, userIdSchema } from "middlewares/validators";
+import { updateAvatarSchema, updateUserSchema, userIdSchema } from "../middlewares/validators";
 
 const router = Router();
 

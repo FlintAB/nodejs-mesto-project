@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs/umd/types";
+import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import validator from 'validator';
 

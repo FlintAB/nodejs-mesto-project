@@ -1,8 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import Card from '../models/card';
 import { OK_CODE, SUCCESS_CODE } from "../constants/statusCode";
-import { Types } from "mongoose";
-import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../middlewares/errors";
+import { ForbiddenError, NotFoundError, UnauthorizedError } from "../middlewares/errors";
 import { RequestWithUser } from "../types/index";
 
 export const getCards = (req: Request, res: Response, next: NextFunction) => {
@@ -19,13 +18,7 @@ export const createCard = (req: Request, res: Response, next: NextFunction) => {
 
   Card.create({ name, link, owner })
     .then(card => res.status(SUCCESS_CODE).json(card))
-    .catch(err => {
-      if (err.name === 'ValidationError') {
-        next(new ValidationError(err.errors));
-      } else {
-        next(err);
-      }
-    });
+    .catch(next);
 };
 
 export const deleteCard = (req: Request, res: Response, next: NextFunction) => {
@@ -35,10 +28,6 @@ export const deleteCard = (req: Request, res: Response, next: NextFunction) => {
 
   const { cardId } = req.params;
   const userId = (req as RequestWithUser).user._id;
-
-  if (!Types.ObjectId.isValid(cardId)) {
-    return next(new BadRequestError('Передан некорректный _id карточки'));
-  }
 
   Card.findById(cardId)
     .then(card => {
@@ -64,14 +53,10 @@ export const likeCard = (req: Request, res: Response, next: NextFunction) => {
   const userId = (req as RequestWithUser).user._id;
   const cardId = req.params.cardId;
 
-  if (!Types.ObjectId.isValid(cardId)) {
-    throw new BadRequestError('Переданы некорректные данные для постановки лайка');
-  }
-
   Card.findByIdAndUpdate(
     cardId,
     { $addToSet: { likes: userId } },
-    { new: true, runValidators: true }
+    { new: true }
   )
     .then(card => {
       if (!card) throw new NotFoundError('Карточка не найдена');
@@ -86,14 +71,10 @@ export const dislikeCard = (req: Request, res: Response, next: NextFunction) => 
   const userId = (req as RequestWithUser).user._id;
   const cardId = req.params.cardId;
 
-  if (!Types.ObjectId.isValid(cardId)) {
-    throw new BadRequestError('Переданы некорректные данные для снятия лайка');
-  }
-
   Card.findByIdAndUpdate(
     cardId,
     { $pull: { likes: userId } },
-    { new: true, runValidators: true }
+    { new: true }
   )
     .then(card => {
       if (!card) throw new NotFoundError('Карточка не найдена');

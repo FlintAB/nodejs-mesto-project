@@ -1,9 +1,9 @@
-import { AlreadyExistError, NotFoundError, UnauthorizedError, ValidationError } from '../middlewares/errors';
-import { EXIST_CONFLICT_CODE, OK_CODE, SUCCESS_CODE, UNAUTHORIZED_CODE } from '../constants/statusCode';
+import { AlreadyExistError, NotFoundError, UnauthorizedError } from '../middlewares/errors';
+import { OK_CODE, SUCCESS_CODE } from '../constants/statusCode';
 import User from '../models/user';
 import { Response, Request, NextFunction } from 'express';
 import { RequestWithUser } from '../types/index';
-import bcrypt, { hash } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 export const getUsers = (req: Request, res: Response, next: NextFunction) => {
@@ -37,8 +37,6 @@ export const createUser = (req: Request, res: Response, next: NextFunction) => {
     .catch(err => {
       if (err.code === 11000) {
         next(new AlreadyExistError('Пользователь с таким email уже существует'));
-      } else if (err.name === 'ValidationError') {
-        next(new ValidationError(err.errors));
       } else {
         next(err);
       }
@@ -53,19 +51,13 @@ export const updateUser = (req: Request, res: Response, next: NextFunction) => {
   User.findByIdAndUpdate(
     (req as RequestWithUser).user._id,
     { name, about },
-    { new: true, runValidators: true }
+    { new: true }
   )
     .then(user => {
       if (!user) throw new NotFoundError('Пользователь не найден');
       res.status(OK_CODE).json(user);
     })
-    .catch(err => {
-      if (err.name === 'ValidationError') {
-        next(new ValidationError(err.errors));
-      } else {
-        next(err);
-      }
-    });
+    .catch(next);
 };
 
 export const updateUserAvatar = (req: Request, res: Response, next: NextFunction) => {
@@ -76,33 +68,28 @@ export const updateUserAvatar = (req: Request, res: Response, next: NextFunction
   User.findByIdAndUpdate(
     (req as RequestWithUser).user._id,
     { avatar },
-    { new: true, runValidators: true }
+    { new: true }
   )
     .then(user => {
       if (!user) throw new NotFoundError('Пользователь не найден');
       res.status(OK_CODE).json(user);
     })
-    .catch(err => {
-      if (err.name === 'ValidationError') {
-        next(new ValidationError(err.errors));
-      } else {
-        next(err);
-      }
-    });
+    .catch(next);
 };
 
-export const login = async(req: Request, res: Response) => {
-  const {email, password} = req.body;
+export const login = (req: Request, res: Response, next: NextFunction) => {
+  const { email, password } = req.body;
 
-    return User.findUserByCredentials(email, password)
-    .then((user) => {
-      const token = jwt.sign({ _id: user._id }, 'some-secret-key', {expiresIn: '7d'});
+  User.findUserByCredentials(email, password)
+    .then(user => {
+      const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET_DEV || 'dev-key', { expiresIn: '7d' }
+      );
 
-      res.send({ token });
+      res.cookie('jwt', token, {httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production'});
+
+      res.send({ token, message: 'Авторизация прошла успешно' });
     })
-    .catch((err) => {res.status(UNAUTHORIZED_CODE).send({ message: err.message });
-    });
-
+    .catch(next);
 };
 
 export const getCurrentUser = (req: Request, res: Response, next: NextFunction) => {

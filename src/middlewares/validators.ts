@@ -26,3 +26,12 @@ export const updateAvatarSchema = Joi.object({
 export const userIdSchema = Joi.object({
   userId: Joi.string().required().hex().length(24)
 });
+
+export const cardIdSchema = Joi.object({
+  cardId: Joi.string().required().hex().length(24)
+});
+
+export const createCardSchema = Joi.object({
+  name: Joi.string().required().min(2).max(30),
+  link: Joi.string().required().pattern(REGEX_URL)
+});
